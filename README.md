@@ -24,7 +24,7 @@ This connector listens for `users.signin` webhook events from Outline. Once a us
 2. On the sidebar, click **API**. At the top right, select **New API Key...**, and give it a name like `Outline Authentik Connector`.
 3. Save the API key somewhere safe to fill in later.
 4. On the sidebar, click **Webhooks**. At the top right, select **New webhook...**, and give it a name like `Outline Authentik Connector`. Copy the signing secret and save it somewhere safe to fill in later.
-5.  Enter in the URL of a subdomain you plan to host the connector on. Then, tick the box for **users.signin**, and then scroll all the way down and click **Create**.
+5.  Enter in the URL of a subdomain you plan to host the connector on, and **make sure it ends in `/sync`. This is important.** Then, tick the box for **users.signin**, and then scroll all the way down and click **Create**.
 
 ## Authentik Setup
 1. Login to your Authentik instance, and access the **Admin interface**.
