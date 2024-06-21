@@ -7,6 +7,8 @@ from dotenv import load_dotenv
 import json
 import os
 import logging
+import hmac
+import hashlib
 
 import helpers.authentik
 import helpers.outline
@@ -42,6 +44,33 @@ def root():
 
 @app.post("/sync")
 async def sync(request: Request):
+    logger.debug("Received webhook")
+    # Verifying webhook signature using secret
+    body = await request.body()
+    outline_signature_header = request.headers.get('outline-signature')
+    if not outline_signature_header:
+        logger.debug("Request is missing signature")
+        return({'status': 'missing-signature'})
+
+    parts = outline_signature_header.split(',')
+    if len(parts) != 2:
+        logger.debug("Request signature is invalid")
+        return({'status': 'invalid-signature'})
+
+    timestamp = parts[0].split('=')[1]
+    signature = parts[1].split('=')[1]
+
+    full_payload = f"{timestamp}.{body.decode('utf-8')}"
+
+    digester = hmac.new(os.getenv('OUTLINE_WEBHOOK_SECRET').encode('utf-8'), full_payload.encode('utf-8'), hashlib.sha256)
+    calculated_signature = digester.hexdigest()
+
+    if not hmac.compare_digest(signature, calculated_signature):
+        logger.debug("Signature calculation failed")
+        return({'status': 'unauthorized'})
+
+    logger.debug("Signature verified, continuing...")
+
     # Processing Outline webhook payload
     response = await request.json()
     payload = response['payload']
@@ -49,7 +78,7 @@ async def sync(request: Request):
     outline_id = model['id']
 
     if response['event'] != 'users.signin':
-        return("Not a users.signin event")
+        return({'status:': 'wrong-event'})
 
     # Using helper methods to grab groups
     authentik_groups = helpers.authentik.get_authentik_groups()
@@ -109,5 +138,5 @@ async def sync(request: Request):
                 logger.debug(f"User is already not in group {group_id}, not removing")
 
     logger.info("Sync complete!")
-    return("Synced")
+    return({'status': 'success'})
     
