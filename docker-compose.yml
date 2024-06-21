@@ -1,7 +1,7 @@
 name: outline-authentik-connector
 services:
   outline-authentik-connector:
-    image: burritosoftware/outline-authentik-connector:latest
+    image: burritosoftware/outline-authentik-connector:master
     build:
       context: .
       dockerfile: Dockerfile
