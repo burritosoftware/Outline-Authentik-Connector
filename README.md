@@ -1,7 +1,7 @@
 # Outline Authentik Connector
 ![Icons](https://skillicons.dev/icons?i=py,fastapi,docker)
 
-[![WakaTime](https://wakatime.com/badge/github/burritosoftware/Outline-Authentik-Connector.svg)](https://wakatime.com/badge/github/burritosoftware/Outline-Authentik-Connector) ![Docker Pulls](https://img.shields.io/docker/pulls/burritosoftware/outline-authentik-connector?logo=docker&logoColor=white)
+[![WakaTime](https://wakatime.com/badge/github/burritosoftware/Outline-Authentik-Connector.svg)](https://wakatime.com/badge/github/burritosoftware/Outline-Authentik-Connector) [![Docker Pulls](https://img.shields.io/docker/pulls/burritosoftware/outline-authentik-connector?logo=docker&logoColor=white)](https://hub.docker.com/r/burritosoftware/outline-authentik-connector)
 
 Syncs groups between Authentik and Outline. Users will be added/removed from Outline groups depending on what Authentik groups they're in, on each sign in.
 
