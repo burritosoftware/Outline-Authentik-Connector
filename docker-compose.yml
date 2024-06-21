@@ -1,0 +1,10 @@
+name: outline-authentik-connector
+services:
+  outline-authentik-connector:
+    image: outline-authentik-connector
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - 8430:80
+    env_file: ".env"
