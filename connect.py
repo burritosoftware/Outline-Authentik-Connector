@@ -40,7 +40,7 @@ outline_client = AsyncOutline(
 
 @app.get("/")
 def root():
-    return({"The connector": "is running!"})
+    return({'status': 'running'})
 
 @app.post("/sync")
 async def sync(request: Request):
