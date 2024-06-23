@@ -28,9 +28,12 @@ This connector listens for `users.signin` webhook events from Outline. Once a us
 
 ## Authentik Setup
 1. Login to your Authentik instance, and access the **Admin interface**.
-2. On the sidebar, go to **Directory > Tokens and App passwords**. Click the blue **Create** button.
-3. Set an identifier for the token and which user you want to bind this to (typically, yourself). Make sure the intent is **API Token**. Turn off **Expiring** unless you want to rotate the token manually after expiry.
-4. Click **Copy token** next to the token you made, and save it somewhere safe to fill in later.
+2. On the sidebar, go to **Users**, and then **Create Service account**. Turn off **Create group** and **Expiring** unless you want to rotate the token manually after expiry. Give it a username and create the account.
+3. Find your newly created service account, go to **Permissions**, and under **Assigned global permissions**, search for and assign the permissions `Can view Group` and `Can view User`.
+4. Go back to **Overview** and select to **Impersonate**.
+5. Go to the settings gear in the top right, then go to **Tokens and App passwords**. Click the **Create Token** button.
+6. Set an identifier for the token, and optionally, a description.
+7. Click **Copy token** next to the token you made, and save it somewhere safe to fill in later.
 
 Now, choose whether to setup the connector [with Docker](#docker-setup) or [manually](#manual-setup).
 
