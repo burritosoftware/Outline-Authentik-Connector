@@ -1,4 +1,4 @@
-fastapi>=0.111.0
+fastapi[standard]>=0.111.0
 outline-python-api>=0.2.0a0
 authentik-client>=2024.4.2.post1718378745
 python-dotenv>=1.0.1
