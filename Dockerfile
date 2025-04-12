@@ -1,17 +1,20 @@
 # 
 FROM python:3.11
 
-# 
-COPY ./requirements.txt /code/requirements.txt
+
+WORKDIR /app
 
 # 
-RUN pip install --no-cache-dir --upgrade -r /code/requirements.txt
+COPY ./requirements.txt requirements.txt
 
 # 
-COPY ./helpers /code/helpers
+RUN pip install --no-cache-dir --upgrade -r requirements.txt
+
+# 
+COPY ./helpers helpers
 
 #
-COPY ./connect.py /code/connect.py
+COPY ./connect.py connect.py
 
 # add the root CA to the certifi bundle
 #COPY ./myCa.crt /tmp
