@@ -21,4 +21,4 @@ COPY ./connect.py connect.py
 #RUN cat /tmp/myCa.crt >> $(python -c "import certifi; print(certifi.where())")
 
 # 
-CMD ["fastapi", "run", "/code/connect.py", "--port", "80"]
+CMD ["gunicorn", "-w", "4", "-k", "uvicorn.workers.UvicornWorker", "connect:app", "--bind", "0.0.0.0:80"]
