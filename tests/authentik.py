@@ -17,4 +17,5 @@ with authentik_client.ApiClient(authentik_config) as api_client:
     for group in groups_list:
       authentik_groups.append(group.name)
 
+
 print(authentik_groups)
