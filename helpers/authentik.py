@@ -13,12 +13,23 @@ authentik_config = authentik_client.Configuration(
 
 def get_authentik_groups():
     authentik_groups = []
+    page_num = 1
+    has_more = True
 
     with authentik_client.ApiClient(authentik_config) as api_client:
         api_instance = authentik_client.CoreApi(api_client)
-        groups_list = api_instance.core_groups_list(include_users=False).results
-        for group in groups_list:
-            authentik_groups.append(group.name)
+        
+        while has_more:
+            logger.debug(f"Fetching Authentik groups page {page_num}")
+            groups_response = api_instance.core_groups_list(include_users=False, page=page_num)
+            
+            for group in groups_response.results:
+                authentik_groups.append(group.name)
+            
+            if groups_response.pagination.next:
+                page_num += 1
+            else:
+                has_more = False
 
-    logger.info(f"Got {len(authentik_groups)} groups from Authentik")
+    logger.info(f"Got {len(authentik_groups)} groups from Authentik across {page_num} pages")
     return(authentik_groups)
