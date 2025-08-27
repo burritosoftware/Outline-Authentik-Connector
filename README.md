@@ -12,6 +12,18 @@ Outline groups that are named the same as Authentik groups will be linked togeth
 
 This connector listens for `users.signin` webhook events from Outline. Once a user signs into Outline, this connector will check for matching groups, and add/remove the user to those groups accordingly.
 
+## Features
+
+### Group Synchronization
+When a user signs in to Outline, the connector automatically syncs their group memberships between Authentik and Outline.
+
+### Auto-Creation of Groups
+When the `AUTO_CREATE_GROUPS` environment variable is set to `True`, the connector will automatically create Outline groups that:
+- Exist in Authentik but don't yet exist in Outline
+- The signing-in user is a member of
+
+This on-demand approach creates groups only when needed rather than creating all groups at once, optimizing resources and keeping your Outline workspace clean.
+
 ## Requirements
 - Outline API key
 - Authentik API key
@@ -45,18 +57,27 @@ The connector can be deployed with Docker Compose for quick and easy setup.
 4. Use a reverse proxy to proxy the connector to a subdomain with HTTPS.
 
 ## Manual Setup
-1. Install requirements.
+1. Create and activate a virtual environment.
 ```sh
-pip3 install -r requirements.txt
+python3 -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
 ```
-2. Copy the environment configuration, and fill it in with your Authentik and Outline configuration.
+
+2. Install requirements.
+```sh
+pip install -r requirements.txt
+```
+
+3. Copy the environment configuration, and fill it in with your Authentik and Outline configuration.
 ```sh
 cp .env.example .env
 nano .env
 ```
 
-3. Start the connector.
+4. Start the connector.
 ```sh
 fastapi run connect.py --port 8430
 ```
-4. Use a reverse proxy to proxy the connector to a subdomain with HTTPS.
+5. Use a reverse proxy to proxy the connector to a subdomain with HTTPS.
+
+**Note:** Always activate the virtual environment (`source venv/bin/activate`) before running the connector or installing new dependencies.
