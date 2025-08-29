@@ -1,17 +1,24 @@
 # 
-FROM python:3.11
+FROM python:alpine
+
+
+WORKDIR /app
 
 # 
-COPY ./requirements.txt /code/requirements.txt
+COPY ./requirements.txt requirements.txt
 
 # 
-RUN pip install --no-cache-dir --upgrade -r /code/requirements.txt
+RUN pip install --no-cache-dir --upgrade -r requirements.txt
 
 # 
-COPY ./helpers /code/helpers
+COPY ./helpers helpers
 
 #
-COPY ./connect.py /code/connect.py
+COPY ./connect.py connect.py
+
+# add the root CA to the certifi bundle
+#COPY ./myCa.crt /tmp
+#RUN cat /tmp/myCa.crt >> $(python -c "import certifi; print(certifi.where())")
 
 # 
-CMD ["fastapi", "run", "/code/connect.py", "--port", "80"]
+CMD ["gunicorn", "-w", "4", "-k", "uvicorn.workers.UvicornWorker", "connect:app", "--bind", "0.0.0.0:80"]
