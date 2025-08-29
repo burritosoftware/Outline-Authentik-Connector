@@ -1,24 +1,17 @@
-# 
+#use a lightweight image
 FROM python:alpine
-
 
 WORKDIR /app
 
-# 
+#copy and install requirements
 COPY ./requirements.txt requirements.txt
-
-# 
 RUN pip install --no-cache-dir --upgrade -r requirements.txt
 
-# 
-COPY ./helpers helpers
+#disable buffering
+ENV PYTHONUNBUFFERED=1
 
-#
-COPY ./connect.py connect.py
+#copy application code
+COPY ./src .
 
-# add the root CA to the certifi bundle
-#COPY ./myCa.crt /tmp
-#RUN cat /tmp/myCa.crt >> $(python -c "import certifi; print(certifi.where())")
-
-# 
-CMD ["gunicorn", "-w", "4", "-k", "uvicorn.workers.UvicornWorker", "connect:app", "--bind", "0.0.0.0:80"]
+#start with uvicorn
+CMD ["uvicorn", "connect:app", "--host", "0.0.0.0", "--port", "80"]
