@@ -51,3 +51,22 @@ async def remove_user_from_group(group_id, user_id):
     else:
         logger.error(f"Failed to remove user {user_id} from group {group_id}")
     return(response.status_code)
+
+async def create_group(group_name):
+    response = await outline_client.post(path='/api/groups.create', cast_to=httpx.Response, body={'name': group_name})
+    if response.status_code == 200:
+        logger.debug(f"Created group {group_name}")
+        response_data = json.loads(await response.aread())
+        group_id = response_data['data']['id']
+        return (response.status_code, group_id)
+    else:
+        logger.error(f"Failed to create group {group_name}")
+        return (response.status_code, None)
+
+async def delete_group(group_id):
+    response = await outline_client.post(path='/api/groups.delete', cast_to=httpx.Response, body={'id': group_id})
+    if response.status_code == 200:
+        logger.debug(f"Deleted group {group_id}")
+    else:
+        logger.error(f"Failed to delete group {group_id}")
+    return(response.status_code)

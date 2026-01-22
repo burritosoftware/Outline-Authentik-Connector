@@ -1,17 +1,30 @@
-# 
-FROM python:3.11
+#use a lightweight image
+FROM python:alpine
 
-# 
-COPY ./requirements.txt /code/requirements.txt
+WORKDIR /app
 
-# 
-RUN pip install --no-cache-dir --upgrade -r /code/requirements.txt
+#copy and install requirements
+COPY ./requirements.txt requirements.txt
+RUN pip install --no-cache-dir --upgrade -r requirements.txt
 
-# 
-COPY ./helpers /code/helpers
+#disable buffering
+ENV PYTHONUNBUFFERED=1
 
-#
-COPY ./connect.py /code/connect.py
+#copy application code
+COPY ./src .
 
-# 
-CMD ["fastapi", "run", "/code/connect.py", "--port", "80"]
+#define environment variables
+ENV AUTHENTIK_URL=
+ENV AUTHENTIK_TOKEN=
+ENV OUTLINE_URL=
+ENV OUTLINE_TOKEN=
+ENV OUTLINE_WEBHOOK_SECRET=
+ENV AUTO_CREATE_GROUPS=False
+ENV AUTHENTIK_GROUP_REGEX=
+ENV DEBUG=False
+
+#expose port 80
+EXPOSE 80
+
+#start with uvicorn
+CMD ["uvicorn", "connect:app", "--host", "0.0.0.0", "--port", "80"]
