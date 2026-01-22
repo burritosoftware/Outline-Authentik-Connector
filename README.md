@@ -17,12 +17,20 @@ This connector listens for `users.signin` webhook events from Outline. Once a us
 ### Group Synchronization
 When a user signs in to Outline, the connector automatically syncs their group memberships between Authentik and Outline.
 
-### Auto-Creation of Groups
+### Auto-Creation of Groups (optional)
 When the `AUTO_CREATE_GROUPS` environment variable is set to `True`, the connector will automatically create Outline groups that:
 - Exist in Authentik but don't yet exist in Outline
 - The signing-in user is a member of
 
 This on-demand approach creates groups only when needed rather than creating all groups at once, optimizing resources and keeping your Outline workspace clean.
+
+### Group Filtering (optional)
+The `AUTHENTIK_GROUP_REGEX` environment variable allows you to filter which Authentik groups should be synced to Outline using a regular expression (case-insensitive). Only groups matching the pattern will be considered for synchronization, letting you selectively sync specific groups while ignoring others. If not set, all Authentik groups will be synced.
+
+**Examples:**
+- `^wiki-.*` - Only sync groups starting with "wiki-" (e.g., wiki-admins, wiki-editors)
+- `.*-outline$` - Only sync groups ending with "-outline" (e.g., dev-outline, sales-outline)
+- `^(admins|editors|viewers)$` - Only sync groups named exactly "admins", "editors", or "viewers"
 
 ## Requirements
 - Outline API key
