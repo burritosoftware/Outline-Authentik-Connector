@@ -17,31 +17,22 @@ group_regex = None
 if group_pattern:
     group_regex = re.compile(group_pattern,re.IGNORECASE)
 
-
-def get_authentik_groups():
+def get_authentik_groups_of_user(email: str) -> list:
     authentik_groups = []
-    page_num = 1
-    has_more = True
-
     with authentik_client.ApiClient(authentik_config) as api_client:
         api_instance = authentik_client.CoreApi(api_client)
-        
-        while has_more:
-            logger.debug(f"Fetching Authentik groups page {page_num}")
-            groups_response = api_instance.core_groups_list(include_users=False, page=page_num)
+        users_response = api_instance.core_users_list(email=email)
 
-            for group in groups_response.results:
-                # Apply regex filtering if a pattern is provided
-                if (group_regex and group_regex.match(group.name)) or not group_regex:
-                    authentik_groups.append(group.name)
+        if not users_response.results:
+            logger.debug(f"No Authentik user found with email {email}")
+            return(authentik_groups)
 
-            if groups_response.pagination.next:
-                page_num += 1
-            else:
-                has_more = False
-            
-            logger.debug(f"Fetched {len(authentik_groups)} groups from Authentik API, page {page_num}, has_more: {has_more}")
+        authentik_user = users_response.results[0]
+        for group in authentik_user.groups_obj:
+            # Apply regex filtering if a pattern is provided
+            if (group_regex and group_regex.match(group.name)) or not group_regex:
+                authentik_groups.append(group.name)
 
-    logger.info(f"Got {len(authentik_groups)} groups from Authentik across {page_num} pages (after regex filtering, if applied)")
+    logger.info(f"Got {len(authentik_groups)} groups for user {email} from Authentik (after regex filtering, if applied)")
     
-    return(authentik_groups)
+    return authentik_groups
