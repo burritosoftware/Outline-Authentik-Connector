@@ -1,6 +1,6 @@
-authentik-client==2025.2.2.post1742395435
-fastapi[standard]==0.115.12
+authentik_client==2025.12.1
+fastapi[standard]==0.128.0
 outline-python-api==0.4.0a0
-python-dotenv==1.1.0
-uvicorn==0.34.0
+python-dotenv==1.2.1
+uvicorn==0.39.0
 httpx==0.27.2

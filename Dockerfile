@@ -1,5 +1,5 @@
 #use a lightweight image
-FROM python:alpine
+FROM python:3.13-alpine
 
 WORKDIR /app
 
