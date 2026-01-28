@@ -25,7 +25,7 @@ def get_authentik_groups_of_user(email: str) -> list:
 
         if not users_response.results:
             logger.debug(f"No Authentik user found with email {email}")
-            return(authentik_groups)
+            return authentik_groups
 
         authentik_user = users_response.results[0]
         for group in authentik_user.groups_obj:

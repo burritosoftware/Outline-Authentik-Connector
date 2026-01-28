@@ -28,16 +28,6 @@ formatter = logging.Formatter('%(levelname)s:     %(name)s: %(message)s')
 console_handler.setFormatter(formatter)
 logger.addHandler(console_handler)
 
-authentik_config = authentik_client.Configuration(
-    host = f"{os.getenv('AUTHENTIK_URL')}/api/v3",
-    access_token=os.getenv('AUTHENTIK_TOKEN')
-)
-
-outline_client = AsyncOutline(
-    bearer_token=os.getenv('OUTLINE_TOKEN'),
-    base_url=os.getenv('OUTLINE_URL')
-)
-
 # Configuration for automatic group creation
 AUTO_CREATE_GROUPS = os.getenv('AUTO_CREATE_GROUPS', False).lower() == 'true'
 
@@ -84,12 +74,10 @@ async def sync(request: Request):
         return({'status:': 'wrong-event'})
     
     # Getting Outline user's email
-    user_response = await outline_client.post(path='/api/users.info', cast_to=httpx.Response, body={'id': outline_id})
-    user = json.loads(await user_response.aread())
-    email = user['data']['email']
+    user_email = await helpers.outline.get_outline_user_email(outline_id)
 
     # Get Authentik groups for the user
-    user_authentik_groups = helpers.authentik.get_authentik_groups_of_user(email)
+    user_authentik_groups = helpers.authentik.get_authentik_groups_of_user(user_email)
 
     # Get Outline groups for the user
     user_outline_groups = await helpers.outline.get_outline_groups(user_id=outline_id)

@@ -13,6 +13,25 @@ outline_client = AsyncOutline(
     base_url=os.getenv('OUTLINE_URL')
 )
 
+async def get_outline_user_email(id: str) -> str:
+    """
+    Fetch the email of an Outline user by their ID.
+
+    Args:
+        id (str): The Outline user ID.
+
+    Returns:
+        str: The email of the user.
+    """
+    
+    user_response = await outline_client.post(
+        path='/api/users.info',
+        cast_to=httpx.Response,
+        body={'id': id}
+    )
+    user = json.loads(await user_response.aread())
+    return user['data']['email']
+
 async def get_outline_groups(query: str = None, user_id: str = None) -> dict:
     """
     Fetch all groups from Outline, optionally filtered by query or user_id.
@@ -60,10 +79,21 @@ async def get_outline_groups(query: str = None, user_id: str = None) -> dict:
         # Increment offset for next batch
         offset += limit
 
-    logger.info(f"Got {len(outline_groups)} groups from Outline")
+    logger.info(f"Got {len(outline_groups)} groups from Outline (for user_id={user_id} and query='{query}')")
     return outline_groups
 
-async def add_user_to_group(group_id, user_id):
+async def add_user_to_group(group_id: str, user_id: str) -> int:
+    """
+    Add a user to an Outline group.
+
+    Args:
+        group_id (str): The ID of the Outline group.
+        user_id (str): The ID of the Outline user.
+
+    Returns:
+        int: HTTP status code of the operation.
+    """
+    
     response = await outline_client.post(
         path='/api/groups.add_user',
         cast_to=httpx.Response,
@@ -77,19 +107,42 @@ async def add_user_to_group(group_id, user_id):
     
     return response.status_code
 
-async def remove_user_from_group(group_id, user_id):
+async def remove_user_from_group(group_id: str, user_id: str) -> int:
+    """
+    Remove a user from an Outline group.
+
+    Args:
+        group_id (str): The ID of the Outline group.
+        user_id (str): The ID of the Outline user.
+
+    Returns:
+        int: HTTP status code of the operation.
+    """
+
     response = await outline_client.post(
         path='/api/groups.remove_user',
         cast_to=httpx.Response,
         body={'id': group_id, 'userId': user_id}
     )
+
     if response.status_code == 200:
         logger.debug(f"Removed user {user_id} from group {group_id}")
     else:
         logger.error(f"Failed to remove user {user_id} from group {group_id}")
+
     return response.status_code
 
-async def create_group(group_name):
+async def create_group(group_name: str) -> tuple[int, str | None]:
+    """
+    Create a new Outline group.
+
+    Args:
+        group_name (str): The name of the group to create.
+
+    Returns:
+        tuple[int, str | None]: HTTP status code and the new group ID if created successfully, else None.
+    """
+
     response = await outline_client.post(
         path='/api/groups.create',
         cast_to=httpx.Response,
