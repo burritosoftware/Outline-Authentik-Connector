@@ -4,6 +4,7 @@ import httpx
 import os
 import json
 import logging
+import re
 
 load_dotenv()
 logger = logging.getLogger("oa-connector")
@@ -12,6 +13,11 @@ outline_client = AsyncOutline(
     bearer_token=os.getenv('OUTLINE_TOKEN'),
     base_url=os.getenv('OUTLINE_URL')
 )
+
+group_pattern=os.getenv('SYNC_GROUP_REGEX', default=None)
+group_regex = None
+if group_pattern:
+    group_regex = re.compile(group_pattern,re.IGNORECASE)
 
 async def get_outline_user_email(id: str) -> str:
     """
@@ -74,12 +80,14 @@ async def get_outline_groups(query: str = None, user_id: str = None) -> dict:
 
         # Add groups to the dictionary
         for group in groups:
-            outline_groups[group['name']] = group['id']
+            # Apply regex filtering if a pattern is provided
+            if (group_regex and group_regex.match(group['name'])) or not group_regex:
+                outline_groups[group['name']] = group['id']
 
         # Increment offset for next batch
         offset += limit
 
-    logger.info(f"Got {len(outline_groups)} groups from Outline (for user_id={user_id} and query='{query}')")
+    logger.info(f"Got {len(outline_groups)} groups from Outline (for user_id={user_id} and query='{query}', after regex filtering, if applied)")
     return outline_groups
 
 async def add_user_to_group(group_id: str, user_id: str) -> int:

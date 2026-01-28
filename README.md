@@ -25,7 +25,7 @@ When the `AUTO_CREATE_GROUPS` environment variable is set to `True`, the connect
 This on-demand approach creates groups only when needed rather than creating all groups at once, optimizing resources and keeping your Outline workspace clean.
 
 ### Group Filtering (optional)
-The `AUTHENTIK_GROUP_REGEX` environment variable allows you to filter which Authentik groups should be synced to Outline using a regular expression (case-insensitive). Only groups matching the pattern will be considered for synchronization, letting you selectively sync specific groups while ignoring others. If not set, all Authentik groups will be synced.
+The `SYNC_GROUP_REGEX` environment variable allows you to filter which groups should be synced between Authentik and Outline using a regular expression (case-insensitive). Only groups matching the pattern will be considered for synchronization from both Authentik and Outline, letting you selectively sync specific groups while ignoring others. If not set, all groups will be synced.
 
 **Examples:**
 - `^wiki-.*` - Only sync groups starting with "wiki-" (e.g., wiki-admins, wiki-editors)

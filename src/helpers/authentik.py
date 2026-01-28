@@ -12,7 +12,7 @@ authentik_config = authentik_client.Configuration(
     access_token=os.getenv('AUTHENTIK_TOKEN')
 )
 
-group_pattern=os.getenv('AUTHENTIK_GROUP_REGEX', default=None)
+group_pattern=os.getenv('SYNC_GROUP_REGEX', default=None)
 group_regex = None
 if group_pattern:
     group_regex = re.compile(group_pattern,re.IGNORECASE)
