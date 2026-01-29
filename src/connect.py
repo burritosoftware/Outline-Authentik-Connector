@@ -1,10 +1,6 @@
-import authentik_client
-from outline import AsyncOutline
 from fastapi import FastAPI, Request
 
-import httpx
 from dotenv import load_dotenv
-import json
 import os
 import logging
 import hmac
@@ -18,15 +14,15 @@ load_dotenv()
 app = FastAPI()
 
 # Logging setup
+level = logging.DEBUG if os.getenv('DEBUG', 'False').lower() == 'true' else logging.INFO
+logging.basicConfig(
+    level=level,
+    format='%(levelname)s:\t(%(name)s) %(message)s',
+    handlers=[logging.StreamHandler()],
+    force=True
+)
 logger = logging.getLogger("oa-connector")
-if os.getenv('DEBUG') == "True":
-    logger.setLevel(logging.DEBUG)
-else:
-    logger.setLevel(logging.INFO)
-console_handler = logging.StreamHandler()
-formatter = logging.Formatter('%(levelname)s:     %(name)s: %(message)s')
-console_handler.setFormatter(formatter)
-logger.addHandler(console_handler)
+logger.debug(f"Logging configured at level: {logging.getLevelName(level)}")
 
 # Configuration for automatic group creation
 AUTO_CREATE_GROUPS = os.getenv('AUTO_CREATE_GROUPS', False).lower() == 'true'
