@@ -24,6 +24,11 @@ logging.basicConfig(
 logger = logging.getLogger("oa-connector")
 logger.debug(f"Logging configured at level: {logging.getLevelName(level)}")
 
+# Configure httpx logger to only show in debug mode
+httpx_logger = logging.getLogger("httpx")
+httpx_logger.setLevel(logging.DEBUG if level == logging.DEBUG else logging.WARNING)
+
+
 # Configuration for automatic group creation
 AUTO_CREATE_GROUPS = os.getenv('AUTO_CREATE_GROUPS', False).lower() == 'true'
 
