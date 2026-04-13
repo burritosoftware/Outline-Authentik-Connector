@@ -2,9 +2,6 @@ name: outline-authentik-connector
 services:
   outline-authentik-connector:
     image: burritosoftware/outline-authentik-connector:latest
-    build:
-      context: .
-      dockerfile: Dockerfile
     ports:
       - 8430:80
     env_file: ".env"
