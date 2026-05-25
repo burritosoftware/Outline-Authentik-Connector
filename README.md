@@ -41,6 +41,17 @@ The `SYNC_GROUP_REGEX` environment variable allows you to filter which groups sh
 - `.*-outline$` - Only sync groups ending with "-outline" (e.g., dev-outline, sales-outline)
 - `^(admins|editors|viewers)$` - Only sync groups named exactly "admins", "editors", or "viewers"
 
+## Webhook Response Codes
+The `/sync` endpoint returns the following status codes. Useful when reading reverse-proxy access logs.
+
+| Code | Meaning |
+|------|---------|
+| 200  | Webhook accepted and processed. |
+| 400  | Malformed request: missing/invalid `outline-signature` header, unparseable body, or timestamp older than `WEBHOOK_TOLERANCE_SECONDS`. |
+| 401  | Signature did not match `OUTLINE_WEBHOOK_SECRET`. |
+| 413  | Request body exceeded `MAX_BODY_BYTES`. |
+| 500  | Upstream Authentik or Outline call failed during sync. |
+
 ## Requirements
 - Outline API key
 - Authentik API key
