@@ -33,5 +33,9 @@ EXPOSE 80
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
   CMD wget -qO- http://127.0.0.1:80/ || exit 1
 
+#drop root before runtime
+RUN adduser -D -u 10001 app
+USER app
+
 #start with uvicorn
 CMD ["uvicorn", "connect:app", "--host", "0.0.0.0", "--port", "80"]

@@ -1,20 +1,47 @@
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Response
 
 from dotenv import load_dotenv
 import os
 import logging
 import hmac
 import hashlib
+import json
+
+load_dotenv()
+
+
+def _env_bool(name: str, default: bool = False) -> bool:
+    return os.getenv(name, str(default)).strip().lower() in {'true', '1', 'yes', 'on'}
+
+
+def _require_env(name: str) -> str:
+    value = os.getenv(name)
+    if not value:
+        raise RuntimeError(
+            f"Required environment variable {name!r} is missing or empty. "
+            "Refusing to start."
+        )
+    return value
+
+
+# Must run before importing helpers — they read os.environ at module load
+# and would raise a less-helpful KeyError if config is missing.
+for _required in (
+    'OUTLINE_WEBHOOK_SECRET',
+    'AUTHENTIK_URL',
+    'AUTHENTIK_TOKEN',
+    'OUTLINE_URL',
+    'OUTLINE_TOKEN',
+):
+    _require_env(_required)
 
 import helpers.authentik
 import helpers.outline
 
-load_dotenv()
-
 app = FastAPI()
 
 # Logging setup
-level = logging.DEBUG if os.getenv('DEBUG', 'False').lower() == 'true' else logging.INFO
+level = logging.DEBUG if _env_bool('DEBUG', False) else logging.INFO
 logging.basicConfig(
     level=level,
     format='%(levelname)s:\t(%(name)s) %(message)s',
@@ -30,7 +57,15 @@ httpx_logger.setLevel(logging.DEBUG if level == logging.DEBUG else logging.WARNI
 
 
 # Configuration for automatic group creation
-AUTO_CREATE_GROUPS = os.getenv('AUTO_CREATE_GROUPS', False).lower() == 'true'
+AUTO_CREATE_GROUPS = _env_bool('AUTO_CREATE_GROUPS', False)
+
+
+def _json_response(status_code: int, body: dict) -> Response:
+    return Response(
+        status_code=status_code,
+        content=json.dumps(body),
+        media_type='application/json',
+    )
 
 @app.get("/")
 def root():
@@ -44,36 +79,52 @@ async def sync(request: Request):
     outline_signature_header = request.headers.get('outline-signature')
     if not outline_signature_header:
         logger.debug("Request is missing signature")
-        return({'status': 'missing-signature'})
+        return _json_response(401, {'status': 'missing-signature'})
 
     parts = outline_signature_header.split(',')
     if len(parts) != 2:
         logger.debug("Request signature is invalid")
-        return({'status': 'invalid-signature'})
+        return _json_response(400, {'status': 'invalid-signature'})
 
     timestamp = parts[0].split('=')[1]
     signature = parts[1].split('=')[1]
 
     full_payload = f"{timestamp}.{body.decode('utf-8')}"
 
-    digester = hmac.new(os.getenv('OUTLINE_WEBHOOK_SECRET').encode('utf-8'), full_payload.encode('utf-8'), hashlib.sha256)
+    digester = hmac.new(os.environ['OUTLINE_WEBHOOK_SECRET'].encode('utf-8'), full_payload.encode('utf-8'), hashlib.sha256)
     calculated_signature = digester.hexdigest()
 
     if not hmac.compare_digest(signature, calculated_signature):
         logger.debug("Signature calculation failed")
-        return({'status': 'unauthorized'})
+        return _json_response(401, {'status': 'unauthorized'})
 
     logger.debug("Signature verified, continuing...")
 
     # Processing Outline webhook payload
-    response = await request.json()
-    payload = response['payload']
-    model = payload['model']
-    outline_id = model['id']
+    try:
+        response = await request.json()
+    except (ValueError, json.JSONDecodeError):
+        logger.debug("Request body is not valid JSON")
+        return _json_response(400, {'status': 'invalid-json'})
 
-    if response['event'] != 'users.signin':
-        return({'status:': 'wrong-event'})
-    
+    # Check event first — KeyError on unexpected payloads must not 500.
+    event = response.get('event') if isinstance(response, dict) else None
+    if event != 'users.signin':
+        return _json_response(400, {'status': 'wrong-event'})
+
+    payload = response.get('payload')
+    if not isinstance(payload, dict):
+        return _json_response(400, {'status': 'missing-payload'})
+
+    model = payload.get('model')
+    if not isinstance(model, dict):
+        return _json_response(400, {'status': 'missing-model'})
+
+    outline_id = model.get('id')
+    if not outline_id:
+        return _json_response(400, {'status': 'missing-id'})
+
+
     # Getting Outline user's email
     user_email = await helpers.outline.get_outline_user_email(outline_id)
 
