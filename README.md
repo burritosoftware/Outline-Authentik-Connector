@@ -81,8 +81,14 @@ Now, choose whether to setup the connector [with Docker](#docker-setup) or [manu
 The connector can be deployed with Docker Compose for quick and easy setup.
 1. [Grab the `docker-compose.yml` file here](./docker-compose.yml), as well as [the `.env.example` file here](./.env.example).
 2. Change `.env.example` to `.env`, and fill it in with your Authentik and Outline configuration.
-3. Start the connector with `docker compose up -d`. By default, the connector will be exposed on port `8430`.
+3. Start the connector with `docker compose up -d`. By default, the connector binds to `127.0.0.1:8430` on the host.
 4. Use a reverse proxy to proxy the connector to a subdomain with HTTPS.
+
+> [!NOTE]
+> The container's published port binds to `127.0.0.1` (loopback), not `0.0.0.0`. The reverse proxy must run on the same host, or attach to the same Docker network (`docker network connect`) and reach the container directly by service name. The connector is intentionally not reachable from other hosts on the LAN.
+
+> [!NOTE]
+> The shipped `docker-compose.yml` uses the `:latest` image tag for convenience. For production, pin to a specific released version tag (for example `burritosoftware/outline-authentik-connector:vX.Y.Z`) so deployments are reproducible and you control when updates land.
 
 ## Manual Setup
 1. Create and activate a virtual environment.
