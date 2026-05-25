@@ -20,7 +20,7 @@ def client(monkeypatch):
     return TestClient(connect.app)
 
 
-def _signed(body: bytes, secret: str = 'test-secret', timestamp: str | None = None):
+def _signed(body: bytes, secret: str = 'test-webhook-secret', timestamp: str | None = None):
     # Compute timestamp at call time so signatures stay within the replay window.
     ts = timestamp if timestamp is not None else str(int(time.time()))
     digest = hmac.new(secret.encode(), f"{ts}.{body.decode()}".encode(), hashlib.sha256).hexdigest()
@@ -41,7 +41,9 @@ def test_malformed_signature_header_returns_400(client):
 
 def test_signature_mismatch_returns_401(client):
     body = b'{"event":"users.signin"}'
-    bad_sig = 't=1700000000,s=' + 'f' * 64
+    # Use a fresh timestamp so the replay-window check passes; the fake digest
+    # is what should trigger the 401, not staleness.
+    bad_sig = f"t={int(time.time())},s=" + 'f' * 64
     r = client.post('/sync', content=body, headers={'outline-signature': bad_sig})
     assert r.status_code == 401
     assert r.json() == {'status': 'unauthorized'}

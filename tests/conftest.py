@@ -11,11 +11,11 @@ if str(_SRC) not in sys.path:
 
 
 REQUIRED_ENV = {
-    'OUTLINE_WEBHOOK_SECRET': 'test-secret',
+    'OUTLINE_WEBHOOK_SECRET': 'test-webhook-secret',
     'AUTHENTIK_URL': 'https://authentik.test',
-    'AUTHENTIK_TOKEN': 'test-token',
+    'AUTHENTIK_TOKEN': 'test-authentik-token',
     'OUTLINE_URL': 'https://outline.test',
-    'OUTLINE_TOKEN': 'test-token',
+    'OUTLINE_TOKEN': 'test-outline-token',
 }
 
 
