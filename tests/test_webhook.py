@@ -166,6 +166,16 @@ def test_invalid_content_length_returns_400(client):
     assert r.status_code in (400, 422)
 
 
+# ---- Malformed signed body --------------------------------------------------
+
+def test_signed_but_malformed_json_returns_400(client):
+    ts = int(time.time())
+    body = b"{not valid json"
+    sig = _sign(ts, body)
+    r = client.post("/sync", content=body, headers={"outline-signature": sig, "content-type": "application/json"})
+    assert r.status_code == 400
+
+
 # ---- Sanity: bad signature still rejected -----------------------------------
 
 def test_bad_signature_rejected(client):

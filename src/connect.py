@@ -114,7 +114,11 @@ async def sync(request: Request):
     logger.debug("Signature verified, continuing...")
 
     # Processing Outline webhook payload (body was already consumed above)
-    response = json.loads(body)
+    try:
+        response = json.loads(body)
+    except json.JSONDecodeError:
+        logger.warning("Signed request body is not valid JSON")
+        raise HTTPException(status_code=400, detail="malformed JSON body")
     payload = response['payload']
     model = payload['model']
     outline_id = model['id']
