@@ -29,9 +29,14 @@ def get_authentik_groups_of_user(email: str) -> list:
 
         # Authentik doesn't enforce email uniqueness; refusing ambiguous matches
         # prevents an Outline-side email change from inheriting another user's groups.
-        if len(users_response.results) > 1:
+        # Pragmatic minimum -- proper fix is binding by OIDC `sub`, not email.
+        # Check pagination.count first: duplicates may span pages and only show
+        # one entry in results.
+        total_count = getattr(getattr(users_response, 'pagination', None), 'count', None)
+        if (total_count is not None and total_count > 1) or len(users_response.results) > 1:
+            reported = total_count if total_count is not None else len(users_response.results)
             logger.warning(
-                f"Refusing sync: {len(users_response.results)} Authentik users share email {email}"
+                f"Refusing sync: {reported} Authentik users share email {email}"
             )
             return authentik_groups
 

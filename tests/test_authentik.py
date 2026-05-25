@@ -12,8 +12,12 @@ def _user(email, groups):
     )
 
 
-def _response(users):
-    return SimpleNamespace(results=users)
+def _response(users, count=None):
+    pagination_count = count if count is not None else len(users)
+    return SimpleNamespace(
+        results=users,
+        pagination=SimpleNamespace(count=pagination_count),
+    )
 
 
 def test_single_match_returns_groups(monkeypatch):
@@ -58,6 +62,20 @@ def test_email_mismatch_refuses(monkeypatch, caplog):
         groups = ak.get_authentik_groups_of_user("user@example.com")
     assert groups == []
     assert any("Refusing sync" in rec.message for rec in caplog.records)
+
+
+def test_pagination_count_detects_cross_page_duplicates(monkeypatch, caplog):
+    # Authentik paginates by default: a duplicate on page 2 only shows count>1.
+    fake_api = MagicMock()
+    fake_api.core_users_list.return_value = _response(
+        [_user("user@example.com", ["admins"])],
+        count=2,
+    )
+    with caplog.at_level(logging.WARNING, logger="oa-connector"), \
+         patch.object(ak.authentik_client, 'CoreApi', return_value=fake_api):
+        groups = ak.get_authentik_groups_of_user("user@example.com")
+    assert groups == []
+    assert any("Refusing sync" in rec.message and "2" in rec.message for rec in caplog.records)
 
 
 def test_email_match_case_insensitive(monkeypatch):
