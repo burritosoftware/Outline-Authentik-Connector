@@ -90,7 +90,7 @@ The connector can be deployed with Docker Compose for quick and easy setup.
 > The container's published port binds to `127.0.0.1` (loopback), not `0.0.0.0`. The reverse proxy must run on the same host, or attach to the same Docker network (`docker network connect`) and reach the container directly by service name. The connector is intentionally not reachable from other hosts on the LAN.
 
 > [!NOTE]
-> The shipped `docker-compose.yml` uses the `:latest` image tag for convenience. For production, pin to a specific released version tag (for example `burritosoftware/outline-authentik-connector:vX.Y.Z`) so deployments are reproducible and you control when updates land.
+> The published `docker-compose.yml` pins to a specific tag (currently `1.2`); update the tag intentionally when you want to upgrade.
 
 ## Manual Setup
 1. Create and activate a virtual environment.
