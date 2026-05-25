@@ -1,5 +1,8 @@
-#use a lightweight image
-FROM python:3.13-alpine
+# Pinned to a specific digest for supply-chain integrity.
+# To upgrade: bump the tag, run `docker pull python:3.13-alpine`, then
+# `docker inspect --format='{{index .RepoDigests 0}}' python:3.13-alpine`
+# and replace the sha256 below.
+FROM python:3.13-alpine@sha256:420cd0bf0f3998275875e02ecd5808168cf0843cbb4d3c536432f729247b2acc
 
 WORKDIR /app
 
