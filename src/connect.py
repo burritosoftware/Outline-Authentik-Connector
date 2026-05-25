@@ -5,6 +5,7 @@ import os
 import logging
 import hmac
 import hashlib
+import time
 
 import helpers.authentik
 import helpers.outline
@@ -50,6 +51,9 @@ httpx_logger.setLevel(logging.DEBUG if level == logging.DEBUG else logging.WARNI
 # Configuration for automatic group creation
 AUTO_CREATE_GROUPS = os.getenv('AUTO_CREATE_GROUPS', False).lower() == 'true'
 
+# Reject webhooks whose signed timestamp drifts beyond this window (seconds).
+WEBHOOK_TOLERANCE_SECONDS = int(os.getenv('WEBHOOK_TOLERANCE_SECONDS', '300'))
+
 @app.get("/")
 def root():
     return({'status': 'running'})
@@ -69,6 +73,16 @@ async def sync(request: Request):
     except ValueError:
         logger.debug("Request signature header is malformed")
         raise HTTPException(status_code=400, detail="malformed signature header")
+
+    try:
+        timestamp_int = int(timestamp)
+    except ValueError:
+        logger.debug("Signature timestamp is not an integer")
+        raise HTTPException(status_code=400, detail="malformed signature header")
+
+    if abs(time.time() - timestamp_int) > WEBHOOK_TOLERANCE_SECONDS:
+        logger.warning("Rejecting webhook: timestamp outside tolerance window")
+        raise HTTPException(status_code=401, detail="stale timestamp")
 
     full_payload = f"{timestamp}.{body.decode('utf-8')}"
 
