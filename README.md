@@ -12,6 +12,15 @@ Outline groups that are named the same as Authentik groups will be linked togeth
 
 This connector listens for `users.signin` webhook events from Outline. Once a user signs into Outline, this connector will check for matching groups, and add/remove the user to those groups accordingly.
 
+> [!WARNING]
+> **The connector is the source of truth on every sign-in. By default, sync is destructive.**
+>
+> When `SYNC_GROUP_REGEX` is unset, on every `users.signin` event the user's Outline group memberships are reconciled to match Authentik **exactly**. Any group the user belongs to in Outline but not in Authentik will be removed on their next sign-in. If you (or another admin) manually add a user to an Outline-only group, that membership will be silently undone the next time the user signs in.
+>
+> **Strongly recommended:** set `SYNC_GROUP_REGEX` to scope sync to a prefix or naming convention you control (for example `^outline-.*`). Groups outside that scope are ignored by the reconciler and will be left alone, so manually-managed memberships are preserved.
+>
+> Example: `SYNC_GROUP_REGEX=^outline-.*` means only groups whose names start with `outline-` participate in sync. A user manually added to `manual-admins` keeps that membership across sign-ins; their membership in `outline-editors` is still reconciled against Authentik.
+
 ## Features
 
 ### Group Synchronization
