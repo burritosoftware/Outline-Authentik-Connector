@@ -115,3 +115,6 @@ fastapi run connect.py --port 8430
 5. Use a reverse proxy to proxy the connector to a subdomain with HTTPS.
 
 **Note:** Always activate the virtual environment (`source venv/bin/activate`) before running the connector or installing new dependencies.
+
+## Security
+For security reports and the disclosure policy, see [SECURITY.md](./SECURITY.md).
