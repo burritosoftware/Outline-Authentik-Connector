@@ -29,5 +29,9 @@ ENV DEBUG=False
 #expose port 80
 EXPOSE 80
 
+# wget is provided by busybox in alpine; verified present in python:3.13-alpine.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+  CMD wget -qO- http://127.0.0.1:80/ || exit 1
+
 #start with uvicorn
 CMD ["uvicorn", "connect:app", "--host", "0.0.0.0", "--port", "80"]
