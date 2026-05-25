@@ -7,9 +7,11 @@ import re
 load_dotenv()
 logger = logging.getLogger("oa-connector")
 
+# Presence guaranteed by startup validation in connect.py; use os.environ so a runtime
+# regression (var emptied/unset) raises KeyError instead of silently authing as anonymous.
 authentik_config = authentik_client.Configuration(
-    host = f"{os.getenv('AUTHENTIK_URL')}/api/v3",
-    access_token=os.getenv('AUTHENTIK_TOKEN')
+    host = f"{os.environ['AUTHENTIK_URL']}/api/v3",
+    access_token=os.environ['AUTHENTIK_TOKEN']
 )
 
 group_pattern=os.getenv('SYNC_GROUP_REGEX', default=None)

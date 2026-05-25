@@ -9,9 +9,11 @@ import re
 load_dotenv()
 logger = logging.getLogger("oa-connector")
 
+# Presence guaranteed by startup validation in connect.py; use os.environ so a runtime
+# regression (var emptied/unset) raises KeyError instead of silently authing as anonymous.
 outline_client = AsyncOutline(
-    bearer_token=os.getenv('OUTLINE_TOKEN'),
-    base_url=os.getenv('OUTLINE_URL')
+    bearer_token=os.environ['OUTLINE_TOKEN'],
+    base_url=os.environ['OUTLINE_URL']
 )
 
 group_pattern=os.getenv('SYNC_GROUP_REGEX', default=None)
