@@ -15,7 +15,14 @@ authentik_config = authentik_client.Configuration(
 group_pattern=os.getenv('SYNC_GROUP_REGEX', default=None)
 group_regex = None
 if group_pattern:
-    group_regex = re.compile(group_pattern,re.IGNORECASE)
+    try:
+        group_regex = re.compile(group_pattern, re.IGNORECASE)
+    except re.error as e:
+        logger.error(
+            f"Invalid SYNC_GROUP_REGEX {group_pattern!r}: {e}. "
+            "Fix the pattern or unset SYNC_GROUP_REGEX to disable filtering."
+        )
+        raise RuntimeError(f"Invalid SYNC_GROUP_REGEX: {e}") from e
 
 def get_authentik_groups_of_user(email: str) -> list:
     authentik_groups = []
