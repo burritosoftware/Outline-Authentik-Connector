@@ -37,7 +37,7 @@ This on-demand approach creates groups only when needed rather than creating all
 The `SYNC_GROUP_REGEX` environment variable allows you to filter which groups should be synced between Authentik and Outline using a regular expression (case-insensitive). Only groups matching the pattern will be considered for synchronization from both Authentik and Outline, letting you selectively sync specific groups while ignoring others. If not set, all groups will be synced.
 
 **Examples:**
-- `^wiki-.*` - Only sync groups starting with "wiki-" (e.g., wiki-admins, wiki-editors)
+- `^outline-.*` - Only sync groups starting with "outline-" (e.g., outline-admins, outline-editors)
 - `.*-outline$` - Only sync groups ending with "-outline" (e.g., dev-outline, sales-outline)
 - `^(admins|editors|viewers)$` - Only sync groups named exactly "admins", "editors", or "viewers"
 
