@@ -5,6 +5,7 @@ import os
 import logging
 import hmac
 import hashlib
+import json
 import time
 
 import helpers.authentik
@@ -54,6 +55,9 @@ AUTO_CREATE_GROUPS = os.getenv('AUTO_CREATE_GROUPS', False).lower() == 'true'
 # Reject webhooks whose signed timestamp drifts beyond this window (seconds).
 WEBHOOK_TOLERANCE_SECONDS = int(os.getenv('WEBHOOK_TOLERANCE_SECONDS', '300'))
 
+# Defense-in-depth body size cap before signature verification.
+MAX_BODY_BYTES = int(os.getenv('MAX_BODY_BYTES', '1048576'))
+
 @app.get("/")
 def root():
     return({'status': 'running'})
@@ -61,8 +65,22 @@ def root():
 @app.post("/sync")
 async def sync(request: Request):
     logger.debug("Received webhook")
-    # Verifying webhook signature using secret
-    body = await request.body()
+
+    # Reject obviously oversized bodies before reading them into memory.
+    declared_length = request.headers.get('content-length')
+    if declared_length is not None:
+        try:
+            if int(declared_length) > MAX_BODY_BYTES:
+                raise HTTPException(status_code=413, detail="request body too large")
+        except ValueError:
+            raise HTTPException(status_code=400, detail="invalid Content-Length")
+
+    # Stream the body so a missing or lying Content-Length can't smuggle past the cap.
+    body = b''
+    async for chunk in request.stream():
+        body += chunk
+        if len(body) > MAX_BODY_BYTES:
+            raise HTTPException(status_code=413, detail="request body too large")
     outline_signature_header = request.headers.get('outline-signature')
     if not outline_signature_header:
         logger.debug("Request is missing signature")
@@ -95,8 +113,8 @@ async def sync(request: Request):
 
     logger.debug("Signature verified, continuing...")
 
-    # Processing Outline webhook payload
-    response = await request.json()
+    # Processing Outline webhook payload (body was already consumed above)
+    response = json.loads(body)
     payload = response['payload']
     model = payload['model']
     outline_id = model['id']
