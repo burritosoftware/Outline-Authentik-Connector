@@ -9,15 +9,24 @@ import re
 load_dotenv()
 logger = logging.getLogger("oa-connector")
 
+# Presence guaranteed by startup validation in connect.py; use os.environ so a runtime
+# regression (var emptied/unset) raises KeyError instead of silently authing as anonymous.
 outline_client = AsyncOutline(
-    bearer_token=os.getenv('OUTLINE_TOKEN'),
-    base_url=os.getenv('OUTLINE_URL')
+    bearer_token=os.environ['OUTLINE_TOKEN'],
+    base_url=os.environ['OUTLINE_URL']
 )
 
 group_pattern=os.getenv('SYNC_GROUP_REGEX', default=None)
 group_regex = None
 if group_pattern:
-    group_regex = re.compile(group_pattern,re.IGNORECASE)
+    try:
+        group_regex = re.compile(group_pattern, re.IGNORECASE)
+    except re.error as e:
+        logger.error(
+            f"Invalid SYNC_GROUP_REGEX {group_pattern!r}: {e}. "
+            "Fix the pattern or unset SYNC_GROUP_REGEX to disable filtering."
+        )
+        raise RuntimeError(f"Invalid SYNC_GROUP_REGEX: {e}") from e
 
 async def get_outline_user_email(id: str) -> str:
     """
@@ -54,9 +63,21 @@ async def get_outline_groups(query: str = None, user_id: str = None) -> dict:
     offset = 0
     limit = 100
     has_more_groups = True
-    
+    # Safety cap: stop after this many page fetches. With limit=100 that's 100k groups —
+    # an Outline tenant that big is well past anything we'd expect to sync. A runaway
+    # loop here (broken `has_more_groups` signal from the server) would otherwise spin forever.
+    max_iterations = 1000
+    iterations = 0
+
     # Handle pagination to get all groups
     while has_more_groups:
+        if iterations >= max_iterations:
+            logger.error(
+                f"Outline pagination hit safety cap of {max_iterations} iterations "
+                f"(offset={offset}, groups_so_far={len(outline_groups)}). Returning partial result."
+            )
+            break
+        iterations += 1
         # Create body query
         body = {'limit': limit, 'offset': offset}
         if query:
@@ -66,7 +87,7 @@ async def get_outline_groups(query: str = None, user_id: str = None) -> dict:
 
         # Fetch groups
         outline_groups_response = await outline_client.post(
-            path=f'/api/groups.list', 
+            path=f'/api/groups.list',
             cast_to=httpx.Response,
             body=body
         )
@@ -74,7 +95,7 @@ async def get_outline_groups(query: str = None, user_id: str = None) -> dict:
 
         outline_groups_json = json.loads(await outline_groups_response.aread())
         groups = outline_groups_json['data']['groups']
-        
+
         # Determine if there are more groups to fetch
         has_more_groups = len(groups) == limit
 
@@ -140,6 +161,11 @@ async def remove_user_from_group(group_id: str, user_id: str) -> int:
 
     return response.status_code
 
+def _sanitize_group_name(group_name: str) -> str:
+    # Strip ASCII control chars (including CR/LF/TAB) before sending to Outline.
+    # Unicode is left intact; legitimate group names may use it.
+    return ''.join(ch for ch in group_name if ord(ch) >= 32 and ord(ch) != 127).strip()
+
 async def create_group(group_name: str) -> tuple[int, str | None]:
     """
     Create a new Outline group.
@@ -150,6 +176,8 @@ async def create_group(group_name: str) -> tuple[int, str | None]:
     Returns:
         tuple[int, str | None]: HTTP status code and the new group ID if created successfully, else None.
     """
+
+    group_name = _sanitize_group_name(group_name)
 
     response = await outline_client.post(
         path='/api/groups.create',

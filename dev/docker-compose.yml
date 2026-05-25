@@ -1,0 +1,209 @@
+# End-to-end dev stack. Spin up real Authentik + Outline + the connector
+# in containers, all wired together. Exists so reviewers can verify the
+# webhook + group-sync flow without standing up cloud infra.
+#
+# Quick start:
+#   cd dev
+#   ./setup.sh            # generates self-signed cert, creates .env
+#   docker compose up -d
+#
+# Then follow README.md.
+
+name: oac-dev
+
+services:
+  # ------------------------------- Authentik -------------------------------
+  authentik-postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: authentik
+      POSTGRES_USER: authentik
+      POSTGRES_PASSWORD: authentik-dev
+    volumes:
+      - authentik-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -d authentik -U authentik"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  authentik-redis:
+    image: redis:alpine
+    restart: unless-stopped
+    volumes:
+      - authentik-redisdata:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping | grep PONG"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  authentik-server:
+    image: ghcr.io/goauthentik/server:2024.12.3
+    restart: unless-stopped
+    command: server
+    environment:
+      AUTHENTIK_REDIS__HOST: authentik-redis
+      AUTHENTIK_POSTGRESQL__HOST: authentik-postgres
+      AUTHENTIK_POSTGRESQL__USER: authentik
+      AUTHENTIK_POSTGRESQL__NAME: authentik
+      AUTHENTIK_POSTGRESQL__PASSWORD: authentik-dev
+      AUTHENTIK_SECRET_KEY: dev-only-replace-me-please-1234567890abcdef
+      AUTHENTIK_BOOTSTRAP_PASSWORD: akadmin
+      AUTHENTIK_BOOTSTRAP_EMAIL: akadmin@dev.test
+      AUTHENTIK_ERROR_REPORTING__ENABLED: "false"
+    volumes:
+      - authentik-media:/media
+      - authentik-templates:/templates
+      - ./authentik-blueprints:/blueprints/local:ro
+    ports:
+      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:9443:9443"
+    depends_on:
+      authentik-postgres:
+        condition: service_healthy
+      authentik-redis:
+        condition: service_healthy
+
+  authentik-worker:
+    image: ghcr.io/goauthentik/server:2024.12.3
+    restart: unless-stopped
+    command: worker
+    user: root
+    environment:
+      AUTHENTIK_REDIS__HOST: authentik-redis
+      AUTHENTIK_POSTGRESQL__HOST: authentik-postgres
+      AUTHENTIK_POSTGRESQL__USER: authentik
+      AUTHENTIK_POSTGRESQL__NAME: authentik
+      AUTHENTIK_POSTGRESQL__PASSWORD: authentik-dev
+      AUTHENTIK_SECRET_KEY: dev-only-replace-me-please-1234567890abcdef
+      AUTHENTIK_ERROR_REPORTING__ENABLED: "false"
+    volumes:
+      - authentik-media:/media
+      - authentik-templates:/templates
+      - ./authentik-blueprints:/blueprints/local:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      authentik-postgres:
+        condition: service_healthy
+      authentik-redis:
+        condition: service_healthy
+
+  # -------------------------------- Outline --------------------------------
+  outline-postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: outline
+      POSTGRES_USER: outline
+      POSTGRES_PASSWORD: outline-dev
+    volumes:
+      - outline-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -d outline -U outline"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  outline-redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    volumes:
+      - outline-redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+
+  outline:
+    image: docker.getoutline.com/outlinewiki/outline:0.81.1
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      LOG_LEVEL: info
+      URL: http://localhost:3000
+      PORT: "3000"
+      FORCE_HTTPS: "false"
+
+      DATABASE_URL: postgres://outline:outline-dev@outline-postgres:5432/outline
+      PGSSLMODE: disable
+      REDIS_URL: redis://outline-redis:6379
+
+      FILE_STORAGE: local
+      FILE_STORAGE_LOCAL_ROOT_DIR: /var/lib/outline/data
+      FILE_STORAGE_UPLOAD_MAX_SIZE: "26214400"
+
+      # Random hex; rotate if you suspect leakage.
+      SECRET_KEY: 8d6f9b2c4e7a1f3d5b8e0c2f4a6d9c1e3b5a7f9d2c4e6a8b0d2f4c6e8a0b2d4f
+      UTILS_SECRET: 1a3c5e7b9d2f4a6c8e0b2d4f6a8c0e2b4d6f8a0c2e4b6d8f0a2c4e6b8d0f2a4c
+
+      OIDC_CLIENT_ID: outline
+      OIDC_CLIENT_SECRET: outline-dev-secret-not-for-production
+      OIDC_AUTH_URI: http://localhost:9000/application/o/authorize/
+      OIDC_TOKEN_URI: http://authentik-server:9000/application/o/token/
+      OIDC_USERINFO_URI: http://authentik-server:9000/application/o/userinfo/
+      OIDC_USERNAME_CLAIM: preferred_username
+      OIDC_DISPLAY_NAME: Authentik (dev)
+      OIDC_SCOPES: openid profile email groups
+
+      # Trust the connector's dev self-signed cert. NEVER in production.
+      NODE_TLS_REJECT_UNAUTHORIZED: "0"
+    ports:
+      - "127.0.0.1:3000:3000"
+    volumes:
+      - outline-data:/var/lib/outline/data
+    depends_on:
+      outline-postgres:
+        condition: service_healthy
+      outline-redis:
+        condition: service_started
+
+  # ------------------------------- Connector -------------------------------
+  oa-connector:
+    build:
+      context: ..
+    restart: unless-stopped
+    # Override the prod CMD to listen on HTTPS — Outline rejects non-TLS
+    # webhook URLs. Port 8443 because USER app (uid 10001) can't bind <1024.
+    command:
+      - uvicorn
+      - connect:app
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8443"
+      - --ssl-keyfile
+      - /certs/key.pem
+      - --ssl-certfile
+      - /certs/cert.pem
+    environment:
+      AUTHENTIK_URL: http://authentik-server:9000
+      AUTHENTIK_TOKEN: outline-connector-dev-token-not-for-production
+      OUTLINE_URL: http://outline:3000
+      OUTLINE_TOKEN: ${OUTLINE_TOKEN:-}
+      OUTLINE_WEBHOOK_SECRET: ${OUTLINE_WEBHOOK_SECRET:-}
+      SYNC_GROUP_REGEX: ^outline-.*
+      AUTO_CREATE_GROUPS: "true"
+      DEBUG: "true"
+    volumes:
+      - ./certs:/certs:ro
+    ports:
+      - "127.0.0.1:8430:8443"
+    networks:
+      default:
+        aliases:
+          - oa-connector.internal
+    depends_on:
+      - authentik-server
+      - outline
+
+volumes:
+  authentik-pgdata:
+  authentik-redisdata:
+  authentik-media:
+  authentik-templates:
+  outline-pgdata:
+  outline-redisdata:
+  outline-data:

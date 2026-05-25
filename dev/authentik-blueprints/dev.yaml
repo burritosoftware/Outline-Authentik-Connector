@@ -1,0 +1,140 @@
+# Authentik blueprint: provisions everything the dev stack needs so the
+# connector's behaviour can be verified without manual Authentik clickops.
+#
+# Re-applied on every Authentik startup, so wiping the volumes and bringing
+# the stack back up restores groups, users, the OIDC provider, and the
+# service-account token unchanged.
+#
+# Dev only. Do not reuse these credentials anywhere real.
+version: 1
+metadata:
+  name: Outline Connector (dev)
+  labels:
+    blueprints.goauthentik.io/instantiate: "true"
+entries:
+  # --- Groups ----------------------------------------------------------------
+  # Two prefixed groups (to exercise SYNC_GROUP_REGEX) plus one unprefixed
+  # (to verify the regex actually skips it).
+  - model: authentik_core.group
+    id: group-outline-admins
+    identifiers:
+      name: outline-admins
+
+  - model: authentik_core.group
+    id: group-outline-editors
+    identifiers:
+      name: outline-editors
+
+  - model: authentik_core.group
+    id: group-unrelated-team
+    identifiers:
+      name: unrelated-team
+
+  # --- Scope mapping: emit the user's groups in the id_token / userinfo -----
+  - model: authentik_providers_oauth2.scopemapping
+    id: scope-groups-outline
+    identifiers:
+      managed: goauthentik.io/providers/oauth2/scope-groups-outline
+    attrs:
+      name: "OAuth Mapping: Outline groups"
+      scope_name: groups
+      description: "Emits user.ak_groups as a 'groups' claim."
+      expression: |
+        return {
+            "groups": [group.name for group in user.ak_groups.all()],
+        }
+
+  # --- Service account the connector uses to read Authentik groups ----------
+  - model: authentik_core.user
+    id: user-connector-svc
+    identifiers:
+      username: outline-connector-svc
+    attrs:
+      name: Outline Connector service account
+      email: outline-connector-svc@dev.test
+      type: service_account
+      is_active: true
+      path: service-accounts
+      groups:
+        - !Find [authentik_core.group, [name, authentik Admins]]
+
+  - model: authentik_core.token
+    identifiers:
+      identifier: outline-connector-api-token
+    attrs:
+      intent: api
+      user: !KeyOf user-connector-svc
+      key: outline-connector-dev-token-not-for-production
+      expiring: false
+      description: "Connector reads Authentik group memberships with this token."
+
+  # --- Human test users -----------------------------------------------------
+  - model: authentik_core.user
+    identifiers:
+      username: alice
+    attrs:
+      name: Alice Admin
+      email: alice@dev.test
+      password: alice-dev
+      is_active: true
+      path: users
+      groups:
+        - !KeyOf group-outline-admins
+        - !KeyOf group-outline-editors
+
+  - model: authentik_core.user
+    identifiers:
+      username: bob
+    attrs:
+      name: Bob Editor
+      email: bob@dev.test
+      password: bob-dev
+      is_active: true
+      path: users
+      groups:
+        - !KeyOf group-outline-editors
+        - !KeyOf group-unrelated-team
+
+  - model: authentik_core.user
+    identifiers:
+      username: carol
+    attrs:
+      name: Carol NoGroups
+      email: carol@dev.test
+      password: carol-dev
+      is_active: true
+      path: users
+
+  # --- OIDC provider + application for Outline ------------------------------
+  - model: authentik_providers_oauth2.oauth2provider
+    identifiers:
+      name: outline
+    attrs:
+      client_type: confidential
+      client_id: outline
+      client_secret: outline-dev-secret-not-for-production
+      authorization_flow: !Find [authentik_flows.flow, [slug, default-provider-authorization-implicit-consent]]
+      invalidation_flow: !Find [authentik_flows.flow, [slug, default-provider-invalidation-flow]]
+      signing_key: !Find [authentik_crypto.certificatekeypair, [name, authentik Self-signed Certificate]]
+      redirect_uris:
+        - matching_mode: strict
+          url: http://localhost:3000/auth/oidc.callback
+      sub_mode: hashed_user_id
+      include_claims_in_id_token: true
+      access_code_validity: minutes=1
+      access_token_validity: minutes=10
+      refresh_token_validity: days=30
+      property_mappings:
+        - !Find [authentik_providers_oauth2.scopemapping, [scope_name, openid]]
+        - !Find [authentik_providers_oauth2.scopemapping, [scope_name, email]]
+        - !Find [authentik_providers_oauth2.scopemapping, [scope_name, profile]]
+        - !KeyOf scope-groups-outline
+
+  - model: authentik_core.application
+    identifiers:
+      slug: outline
+    attrs:
+      name: Outline
+      provider: !Find [authentik_providers_oauth2.oauth2provider, [name, outline]]
+      meta_launch_url: http://localhost:3000/
+      open_in_new_tab: false
