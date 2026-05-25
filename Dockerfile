@@ -26,5 +26,9 @@ ENV DEBUG=False
 #expose port 80
 EXPOSE 80
 
+#drop root before runtime
+RUN adduser -D -u 10001 app
+USER app
+
 #start with uvicorn
 CMD ["uvicorn", "connect:app", "--host", "0.0.0.0", "--port", "80"]
