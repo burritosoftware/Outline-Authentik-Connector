@@ -11,10 +11,36 @@ import helpers.outline
 
 load_dotenv()
 
+
+def _env_bool(name: str, default: bool = False) -> bool:
+    return os.getenv(name, str(default)).lower() == 'true'
+
+
+def _require_env(name: str) -> str:
+    value = os.getenv(name)
+    if not value:
+        raise RuntimeError(
+            f"Required environment variable {name!r} is missing or empty. "
+            "Refusing to start."
+        )
+    return value
+
+
+# Fail loudly at import time if any required secret/config is missing.
+# An empty OUTLINE_WEBHOOK_SECRET would let HMAC compute with key b"" — trivially forgeable.
+for _required in (
+    'OUTLINE_WEBHOOK_SECRET',
+    'AUTHENTIK_URL',
+    'AUTHENTIK_TOKEN',
+    'OUTLINE_URL',
+    'OUTLINE_TOKEN',
+):
+    _require_env(_required)
+
 app = FastAPI()
 
 # Logging setup
-level = logging.DEBUG if os.getenv('DEBUG', 'False').lower() == 'true' else logging.INFO
+level = logging.DEBUG if _env_bool('DEBUG', False) else logging.INFO
 logging.basicConfig(
     level=level,
     format='%(levelname)s:\t(%(name)s) %(message)s',
@@ -30,7 +56,7 @@ httpx_logger.setLevel(logging.DEBUG if level == logging.DEBUG else logging.WARNI
 
 
 # Configuration for automatic group creation
-AUTO_CREATE_GROUPS = os.getenv('AUTO_CREATE_GROUPS', False).lower() == 'true'
+AUTO_CREATE_GROUPS = _env_bool('AUTO_CREATE_GROUPS', False)
 
 @app.get("/")
 def root():
