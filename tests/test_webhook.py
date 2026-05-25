@@ -102,6 +102,26 @@ def test_tolerance_env_var_respected(client, monkeypatch):
     assert r.status_code == 200
 
 
+def test_outline_millisecond_timestamp_accepted(client):
+    # Outline emits Date.now() in milliseconds; verify the normalization in
+    # connect.py picks that up and the replay-window check passes.
+    ts_ms = int(time.time() * 1000)
+    body = _body()
+    sig = _sign(ts_ms, body)
+    r = client.post("/sync", content=body, headers={"outline-signature": sig, "content-type": "application/json"})
+    assert r.status_code == 200
+
+
+def test_stale_millisecond_timestamp_rejected(client):
+    # Same normalization should still reject genuinely stale ms timestamps.
+    ts_ms = (int(time.time()) - 10_000) * 1000
+    body = _body()
+    sig = _sign(ts_ms, body)
+    r = client.post("/sync", content=body, headers={"outline-signature": sig, "content-type": "application/json"})
+    assert r.status_code == 401
+    assert r.json() == {"status": "stale-timestamp"}
+
+
 # ---- H3: malformed signature header -----------------------------------------
 
 @pytest.mark.parametrize("header", [

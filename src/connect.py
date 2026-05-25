@@ -135,7 +135,12 @@ async def sync(request: Request):
         logger.debug("Signature timestamp is not an integer")
         return _json_response(400, {'status': 'invalid-signature'})
 
-    if abs(time.time() - timestamp_int) > WEBHOOK_TOLERANCE_SECONDS:
+    # Outline emits Date.now() (milliseconds). Other webhook schemes (Stripe,
+    # GitHub, Svix) emit seconds. Normalize anything past year ~33658 — which
+    # only makes sense as ms — down to seconds.
+    timestamp_sec = timestamp_int / 1000 if timestamp_int > 10**12 else timestamp_int
+
+    if abs(time.time() - timestamp_sec) > WEBHOOK_TOLERANCE_SECONDS:
         logger.warning("Rejecting webhook: timestamp outside tolerance window")
         return _json_response(401, {'status': 'stale-timestamp'})
 
