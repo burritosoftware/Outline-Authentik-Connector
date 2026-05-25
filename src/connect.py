@@ -14,7 +14,7 @@ load_dotenv()
 
 
 def _env_bool(name: str, default: bool = False) -> bool:
-    return os.getenv(name, str(default)).lower() == 'true'
+    return os.getenv(name, str(default)).strip().lower() in {'true', '1', 'yes', 'on'}
 
 
 def _require_env(name: str) -> str:

@@ -59,3 +59,29 @@ def test_auto_create_groups_true_string(monkeypatch):
     sys.modules.pop('connect', None)
     connect = importlib.import_module('connect')
     assert connect.AUTO_CREATE_GROUPS is True
+
+
+@pytest.mark.parametrize('value', ['true', 'True', 'TRUE', '1', 'yes', 'YES', 'on', 'ON', '  true  '])
+def test_env_bool_truthy_values(monkeypatch, value):
+    _set_all(monkeypatch)
+    monkeypatch.setenv('AUTO_CREATE_GROUPS', value)
+    sys.modules.pop('connect', None)
+    connect = importlib.import_module('connect')
+    assert connect.AUTO_CREATE_GROUPS is True
+
+
+@pytest.mark.parametrize('value', ['false', 'False', '0', 'no', 'off', '', 'maybe', 'truthy'])
+def test_env_bool_falsy_values(monkeypatch, value):
+    _set_all(monkeypatch)
+    monkeypatch.setenv('AUTO_CREATE_GROUPS', value)
+    sys.modules.pop('connect', None)
+    connect = importlib.import_module('connect')
+    assert connect.AUTO_CREATE_GROUPS is False
+
+
+def test_env_bool_unset_is_false(monkeypatch):
+    _set_all(monkeypatch)
+    monkeypatch.delenv('AUTO_CREATE_GROUPS', raising=False)
+    sys.modules.pop('connect', None)
+    connect = importlib.import_module('connect')
+    assert connect.AUTO_CREATE_GROUPS is False
