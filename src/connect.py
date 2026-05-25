@@ -7,9 +7,6 @@ import hmac
 import hashlib
 import json
 
-import helpers.authentik
-import helpers.outline
-
 load_dotenv()
 
 
@@ -27,8 +24,8 @@ def _require_env(name: str) -> str:
     return value
 
 
-# Fail loudly at import time if any required secret/config is missing.
-# An empty OUTLINE_WEBHOOK_SECRET would let HMAC compute with key b"" — trivially forgeable.
+# Must run before importing helpers — they read os.environ at module load
+# and would raise a less-helpful KeyError if config is missing.
 for _required in (
     'OUTLINE_WEBHOOK_SECRET',
     'AUTHENTIK_URL',
@@ -37,6 +34,9 @@ for _required in (
     'OUTLINE_TOKEN',
 ):
     _require_env(_required)
+
+import helpers.authentik
+import helpers.outline
 
 app = FastAPI()
 
