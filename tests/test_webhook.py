@@ -69,6 +69,30 @@ def test_future_timestamp_rejected(client):
     assert r.status_code == 401
 
 
+def test_tolerance_boundary_equal_is_accepted(client, monkeypatch):
+    # connect.py uses `abs(...) > tolerance`, so equal-to-tolerance passes.
+    # Freeze time so the request handler sees exactly the same `now` we signed against.
+    frozen_now = 1_700_000_000
+    monkeypatch.setattr(connect.time, 'time', lambda: frozen_now)
+    monkeypatch.setattr(connect, 'WEBHOOK_TOLERANCE_SECONDS', 300)
+    ts = frozen_now - 300
+    body = _body()
+    sig = _sign(ts, body)
+    r = client.post("/sync", content=body, headers={"outline-signature": sig, "content-type": "application/json"})
+    assert r.status_code == 200
+
+
+def test_tolerance_boundary_one_past_is_rejected(client, monkeypatch):
+    frozen_now = 1_700_000_000
+    monkeypatch.setattr(connect.time, 'time', lambda: frozen_now)
+    monkeypatch.setattr(connect, 'WEBHOOK_TOLERANCE_SECONDS', 300)
+    ts = frozen_now - 301
+    body = _body()
+    sig = _sign(ts, body)
+    r = client.post("/sync", content=body, headers={"outline-signature": sig, "content-type": "application/json"})
+    assert r.status_code == 401
+
+
 def test_tolerance_env_var_respected(client, monkeypatch):
     monkeypatch.setattr(connect, 'WEBHOOK_TOLERANCE_SECONDS', 10_000)
     ts = int(time.time()) - 5_000
@@ -162,8 +186,7 @@ def test_invalid_content_length_returns_400(client):
             "content-length": "not-a-number",
         },
     )
-    # Either Starlette rejects it earlier (422/400), or our handler raises 400.
-    assert r.status_code in (400, 422)
+    assert r.status_code == 400
 
 
 # ---- Malformed signed body --------------------------------------------------
