@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, HTTPException
 
 from dotenv import load_dotenv
 import os
@@ -8,6 +8,24 @@ import hashlib
 
 import helpers.authentik
 import helpers.outline
+
+
+def _parse_outline_signature(header: str) -> tuple[str, str]:
+    # Outline sends `t=<timestamp>,s=<hex>`; tolerate reordered or extra fields,
+    # but reject anything that doesn't yield exactly one of each.
+    timestamp = None
+    signature = None
+    for part in header.split(','):
+        key, sep, value = part.strip().partition('=')
+        if not sep or not value:
+            raise ValueError("malformed signature segment")
+        if key == 't':
+            timestamp = value
+        elif key == 's':
+            signature = value
+    if timestamp is None or signature is None:
+        raise ValueError("missing t= or s= in signature header")
+    return timestamp, signature
 
 load_dotenv()
 
@@ -46,13 +64,11 @@ async def sync(request: Request):
         logger.debug("Request is missing signature")
         return({'status': 'missing-signature'})
 
-    parts = outline_signature_header.split(',')
-    if len(parts) != 2:
-        logger.debug("Request signature is invalid")
-        return({'status': 'invalid-signature'})
-
-    timestamp = parts[0].split('=')[1]
-    signature = parts[1].split('=')[1]
+    try:
+        timestamp, signature = _parse_outline_signature(outline_signature_header)
+    except ValueError:
+        logger.debug("Request signature header is malformed")
+        raise HTTPException(status_code=400, detail="malformed signature header")
 
     full_payload = f"{timestamp}.{body.decode('utf-8')}"
 
