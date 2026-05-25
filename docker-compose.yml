@@ -1,7 +1,9 @@
 name: outline-authentik-connector
 services:
   outline-authentik-connector:
-    image: burritosoftware/outline-authentik-connector:latest
+    # Pin to a specific release tag. Bump deliberately after reviewing release
+    # notes; do not use :latest in production.
+    image: burritosoftware/outline-authentik-connector:1.2
     ports:
       - 8430:80
     env_file: ".env"

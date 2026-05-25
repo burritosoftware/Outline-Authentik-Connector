@@ -17,7 +17,14 @@ outline_client = AsyncOutline(
 group_pattern=os.getenv('SYNC_GROUP_REGEX', default=None)
 group_regex = None
 if group_pattern:
-    group_regex = re.compile(group_pattern,re.IGNORECASE)
+    try:
+        group_regex = re.compile(group_pattern, re.IGNORECASE)
+    except re.error as e:
+        logger.error(
+            f"Invalid SYNC_GROUP_REGEX {group_pattern!r}: {e}. "
+            "Fix the pattern or unset SYNC_GROUP_REGEX to disable filtering."
+        )
+        raise RuntimeError(f"Invalid SYNC_GROUP_REGEX: {e}") from e
 
 async def get_outline_user_email(id: str) -> str:
     """
@@ -140,6 +147,11 @@ async def remove_user_from_group(group_id: str, user_id: str) -> int:
 
     return response.status_code
 
+def _sanitize_group_name(group_name: str) -> str:
+    # Strip ASCII control chars (including CR/LF/TAB) before sending to Outline.
+    # Unicode is left intact; legitimate group names may use it.
+    return ''.join(ch for ch in group_name if ord(ch) >= 32 and ord(ch) != 127).strip()
+
 async def create_group(group_name: str) -> tuple[int, str | None]:
     """
     Create a new Outline group.
@@ -150,6 +162,8 @@ async def create_group(group_name: str) -> tuple[int, str | None]:
     Returns:
         tuple[int, str | None]: HTTP status code and the new group ID if created successfully, else None.
     """
+
+    group_name = _sanitize_group_name(group_name)
 
     response = await outline_client.post(
         path='/api/groups.create',
