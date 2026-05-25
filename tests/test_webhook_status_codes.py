@@ -3,6 +3,7 @@ import hmac
 import importlib
 import json
 import sys
+import time
 
 import pytest
 from fastapi.testclient import TestClient
@@ -19,9 +20,11 @@ def client(monkeypatch):
     return TestClient(connect.app)
 
 
-def _signed(body: bytes, secret: str = 'test-secret', timestamp: str = '1700000000'):
-    digest = hmac.new(secret.encode(), f"{timestamp}.{body.decode()}".encode(), hashlib.sha256).hexdigest()
-    return f"t={timestamp},s={digest}"
+def _signed(body: bytes, secret: str = 'test-secret', timestamp: str | None = None):
+    # Compute timestamp at call time so signatures stay within the replay window.
+    ts = timestamp if timestamp is not None else str(int(time.time()))
+    digest = hmac.new(secret.encode(), f"{ts}.{body.decode()}".encode(), hashlib.sha256).hexdigest()
+    return f"t={ts},s={digest}"
 
 
 def test_missing_signature_header_returns_401(client):
