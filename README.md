@@ -44,6 +44,8 @@ The `SYNC_GROUP_REGEX` environment variable allows you to filter which groups sh
 ## Webhook Response Codes
 The `/sync` endpoint returns the following status codes. Useful when reading reverse-proxy access logs.
 
+Behavior described below applies after the full set of security batches has merged.
+
 | Code | Meaning |
 |------|---------|
 | 200  | Webhook accepted and processed. |
