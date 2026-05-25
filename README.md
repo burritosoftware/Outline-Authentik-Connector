@@ -47,8 +47,8 @@ The `/sync` endpoint returns the following status codes. Useful when reading rev
 | Code | Meaning |
 |------|---------|
 | 200  | Webhook accepted and processed. |
-| 400  | Malformed request: missing/invalid `outline-signature` header, unparseable body, or timestamp older than `WEBHOOK_TOLERANCE_SECONDS`. |
-| 401  | Signature did not match `OUTLINE_WEBHOOK_SECRET`. |
+| 400  | Malformed request: missing/invalid `outline-signature` header or unparseable body. |
+| 401  | Signature did not match `OUTLINE_WEBHOOK_SECRET`, or timestamp older than `WEBHOOK_TOLERANCE_SECONDS`. |
 | 413  | Request body exceeded `MAX_BODY_BYTES`. |
 | 500  | Upstream Authentik or Outline call failed during sync. |
 
