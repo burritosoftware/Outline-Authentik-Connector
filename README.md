@@ -12,6 +12,15 @@ Outline groups that are named the same as Authentik groups will be linked togeth
 
 This connector listens for `users.signin` webhook events from Outline. Once a user signs into Outline, this connector will check for matching groups, and add/remove the user to those groups accordingly.
 
+> [!WARNING]
+> **The connector is the source of truth on every sign-in. By default, sync is destructive.**
+>
+> When `SYNC_GROUP_REGEX` is unset, on every `users.signin` event the user's Outline group memberships are reconciled to match Authentik **exactly**. Any group the user belongs to in Outline but not in Authentik will be removed on their next sign-in. If you (or another admin) manually add a user to an Outline-only group, that membership will be silently undone the next time the user signs in.
+>
+> **Strongly recommended:** set `SYNC_GROUP_REGEX` to scope sync to a prefix or naming convention you control (for example `^outline-.*`). Groups outside that scope are ignored by the reconciler and will be left alone, so manually-managed memberships are preserved.
+>
+> Example: `SYNC_GROUP_REGEX=^outline-.*` means only groups whose names start with `outline-` participate in sync. A user manually added to `manual-admins` keeps that membership across sign-ins; their membership in `outline-editors` is still reconciled against Authentik.
+
 ## Features
 
 ### Group Synchronization
@@ -28,9 +37,22 @@ This on-demand approach creates groups only when needed rather than creating all
 The `SYNC_GROUP_REGEX` environment variable allows you to filter which groups should be synced between Authentik and Outline using a regular expression (case-insensitive). Only groups matching the pattern will be considered for synchronization from both Authentik and Outline, letting you selectively sync specific groups while ignoring others. If not set, all groups will be synced.
 
 **Examples:**
-- `^wiki-.*` - Only sync groups starting with "wiki-" (e.g., wiki-admins, wiki-editors)
+- `^outline-.*` - Only sync groups starting with "outline-" (e.g., outline-admins, outline-editors)
 - `.*-outline$` - Only sync groups ending with "-outline" (e.g., dev-outline, sales-outline)
 - `^(admins|editors|viewers)$` - Only sync groups named exactly "admins", "editors", or "viewers"
+
+## Webhook Response Codes
+The `/sync` endpoint returns the following status codes. Useful when reading reverse-proxy access logs.
+
+Behavior described below applies after the full set of security batches has merged.
+
+| Code | Meaning |
+|------|---------|
+| 200  | Webhook accepted and processed. |
+| 400  | Malformed request: missing/invalid `outline-signature` header or unparseable body. |
+| 401  | Signature did not match `OUTLINE_WEBHOOK_SECRET`, or timestamp older than `WEBHOOK_TOLERANCE_SECONDS`. |
+| 413  | Request body exceeded `MAX_BODY_BYTES`. |
+| 500  | Upstream Authentik or Outline call failed during sync. |
 
 ## Requirements
 - Outline API key
@@ -61,8 +83,14 @@ Now, choose whether to setup the connector [with Docker](#docker-setup) or [manu
 The connector can be deployed with Docker Compose for quick and easy setup.
 1. [Grab the `docker-compose.yml` file here](./docker-compose.yml), as well as [the `.env.example` file here](./.env.example).
 2. Change `.env.example` to `.env`, and fill it in with your Authentik and Outline configuration.
-3. Start the connector with `docker compose up -d`. By default, the connector will be exposed on port `8430`.
+3. Start the connector with `docker compose up -d`. By default, the connector binds to `127.0.0.1:8430` on the host.
 4. Use a reverse proxy to proxy the connector to a subdomain with HTTPS.
+
+> [!NOTE]
+> The container's published port binds to `127.0.0.1` (loopback), not `0.0.0.0`. The reverse proxy must run on the same host, or attach to the same Docker network (`docker network connect`) and reach the container directly by service name. The connector is intentionally not reachable from other hosts on the LAN.
+
+> [!NOTE]
+> The published `docker-compose.yml` pins to a specific tag (currently `1.2`); update the tag intentionally when you want to upgrade.
 
 ## Manual Setup
 1. Create and activate a virtual environment.
@@ -89,3 +117,6 @@ fastapi run connect.py --port 8430
 5. Use a reverse proxy to proxy the connector to a subdomain with HTTPS.
 
 **Note:** Always activate the virtual environment (`source venv/bin/activate`) before running the connector or installing new dependencies.
+
+## Security
+For security reports and the disclosure policy, see [SECURITY.md](./SECURITY.md).
