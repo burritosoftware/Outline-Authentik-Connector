@@ -3,5 +3,5 @@ services:
   outline-authentik-connector:
     image: burritosoftware/outline-authentik-connector:latest
     ports:
-      - 8430:80
+      - 127.0.0.1:8430:80
     env_file: ".env"
