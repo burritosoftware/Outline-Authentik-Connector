@@ -27,7 +27,22 @@ def get_authentik_groups_of_user(email: str) -> list:
             logger.debug(f"No Authentik user found with email {email}")
             return authentik_groups
 
+        # Authentik doesn't enforce email uniqueness; refusing ambiguous matches
+        # prevents an Outline-side email change from inheriting another user's groups.
+        if len(users_response.results) > 1:
+            logger.warning(
+                f"Refusing sync: {len(users_response.results)} Authentik users share email {email}"
+            )
+            return authentik_groups
+
         authentik_user = users_response.results[0]
+        if (authentik_user.email or '').casefold() != email.casefold():
+            logger.warning(
+                f"Refusing sync: Authentik returned user with email "
+                f"'{authentik_user.email}' for query '{email}'"
+            )
+            return authentik_groups
+
         for group in authentik_user.groups_obj:
             # Apply regex filtering if a pattern is provided
             if (group_regex and group_regex.match(group.name)) or not group_regex:
