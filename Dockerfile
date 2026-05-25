@@ -8,7 +8,7 @@ WORKDIR /app
 
 #copy and install requirements
 COPY ./requirements.txt requirements.txt
-RUN pip install --no-cache-dir --upgrade -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
 
 #disable buffering
 ENV PYTHONUNBUFFERED=1
